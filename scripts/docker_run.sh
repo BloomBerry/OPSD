@@ -20,7 +20,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # HF cache lives on the NAS (already populated with the Qwen models in hub-cache
 # format: $HF_CACHE_DIR/hub/models--Qwen--Qwen3-1.7B/...). Mounted read-only.
-HF_CACHE_DIR="${HF_CACHE_DIR:-/data/nas_/data/nas_vol1/huggingface}"
+HF_CACHE_DIR="${HF_CACHE_DIR:-/data/nas_vol1/huggingface}"
 OUTPUTS_DIR="${OUTPUTS_DIR:-$REPO_DIR/outputs}"
 WANDB_DIR="${WANDB_DIR:-$REPO_DIR/wandb}"
 
