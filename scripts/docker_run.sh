@@ -59,6 +59,8 @@ exec docker run --rm -it \
     -e NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}" \
     ${EVAL_GPUS:+-e EVAL_GPUS="$EVAL_GPUS"} \
     ${TP:+-e TP="$TP"} \
+    ${STEPS:+-e STEPS="$STEPS"} \
+    ${RUN_BASE:+-e RUN_BASE="$RUN_BASE"} \
     -v "$REPO_DIR":/workspace \
     -v "$HF_CACHE_DIR":/hf_cache \
     -v "$OUTPUTS_DIR":/workspace/outputs \
