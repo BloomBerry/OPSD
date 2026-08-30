@@ -1,4 +1,6 @@
 #!/bin/bash
+# Run from the script's own dir so evaluate_math.py resolves regardless of CWD.
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 BASE_MODEL="/data0/shared/Qwen3-1.7B"
 EXP_DIR="/data1/opsd/qwen31b_gen1024_fixteacher_temp11_forwardbeta0_clip005"

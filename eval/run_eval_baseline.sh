@@ -1,6 +1,8 @@
 #!/bin/bash
 # Baseline reproduction eval — Qwen3-1.7B, 3 benchmarks (AIME24 / AIME25 / HMMT25), Avg@12.
 # EXP_DIR must match the training output_dir + run_config from run_opsd_1b_baseline.sh.
+# Run from the script's own dir so evaluate_math.py resolves regardless of CWD.
+cd "$(dirname "${BASH_SOURCE[0]}")"
 BASE_MODEL="Qwen/Qwen3-1.7B"
 EXP_DIR="/workspace/outputs/qwen31b_gen1024_fixteacher_temp11_forwardbeta0_clip005"
 
