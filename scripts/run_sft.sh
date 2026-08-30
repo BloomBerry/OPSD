@@ -4,7 +4,7 @@ accelerate launch \
     --gradient_accumulation_steps 4 \
     --main_process_port 19346 \
     sft_train.py \
-    --model_name_or_path /genai/fsx-project/siyanzhao/models/Qwen3-4B/ \
+    --model_name_or_path Qwen/Qwen3-4B \
     --learning_rate 5e-6 \
     --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 4 \

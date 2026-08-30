@@ -53,9 +53,12 @@ exec docker run --rm -it \
     -e WANDB_PROJECT="${WANDB_PROJECT:-OPSD}" \
     ${WANDB_ENTITY:+-e WANDB_ENTITY="$WANDB_ENTITY"} \
     ${HF_TOKEN:+-e HF_TOKEN="$HF_TOKEN"} \
-    -e HF_HOME=/workspace/.hf_cache \
+    -e HF_HOME=/hf_cache \
+    -e HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" \
+    -e NCCL_CUMEM_ENABLE="${NCCL_CUMEM_ENABLE:-0}" \
+    -e NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}" \
     -v "$REPO_DIR":/workspace \
-    -v "$HF_CACHE_DIR":/workspace/.hf_cache \
+    -v "$HF_CACHE_DIR":/hf_cache:ro \
     -v "$OUTPUTS_DIR":/workspace/outputs \
     -v "$WANDB_DIR":/workspace/wandb \
     "$IMAGE" \
