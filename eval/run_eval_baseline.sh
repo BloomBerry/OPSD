@@ -4,26 +4,31 @@
 BASE_MODEL="Qwen/Qwen3-1.7B"
 EXP_DIR="/workspace/outputs/qwen31b_gen1024_fixteacher_temp11_forwardbeta0_clip005"
 
+# GPUs / tensor-parallel size are overridable so eval can run on whatever is free
+# (e.g. EVAL_GPUS=4,5 TP=2 bash run_eval_baseline.sh). Defaults reproduce the original.
+EVAL_GPUS="${EVAL_GPUS:-0,1,2,3}"
+TP="${TP:-4}"
+
 # base model performance (per benchmark)
 for ds in aime24 aime25 hmmt25; do
-    NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python evaluate_math.py \
+    NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=$EVAL_GPUS python evaluate_math.py \
         --base_model "$BASE_MODEL" \
         --dataset "$ds" \
         --val_n 12 \
         --temperature 1.0 \
-        --tensor_parallel_size 4
+        --tensor_parallel_size $TP
     wait
 done
 
 # trained checkpoints
 for step in 25 50 75 100; do
     for ds in aime24 aime25 hmmt25; do
-        NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python evaluate_math.py \
+        NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=$EVAL_GPUS python evaluate_math.py \
             --base_model "$BASE_MODEL" \
             --dataset "$ds" \
             --val_n 12 \
             --temperature 1.0 \
-            --tensor_parallel_size 4 \
+            --tensor_parallel_size $TP \
             --checkpoint_dir "$EXP_DIR/checkpoint-$step"
         wait
     done
