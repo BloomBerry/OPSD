@@ -57,6 +57,8 @@ exec docker run --rm -it \
     -e HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}" \
     -e NCCL_CUMEM_ENABLE="${NCCL_CUMEM_ENABLE:-0}" \
     -e NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}" \
+    ${EVAL_GPUS:+-e EVAL_GPUS="$EVAL_GPUS"} \
+    ${TP:+-e TP="$TP"} \
     -v "$REPO_DIR":/workspace \
     -v "$HF_CACHE_DIR":/hf_cache \
     -v "$OUTPUTS_DIR":/workspace/outputs \
