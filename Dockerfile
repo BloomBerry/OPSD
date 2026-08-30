@@ -18,6 +18,9 @@ RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.s
 ENV PATH=/opt/conda/bin:$PATH
 
 # ---- opsd conda env (python 3.10 + torch 2.8 / trl 0.26 / vllm 0.11 / deepspeed 0.18 ...) ----
+# Accept the Anaconda default channel ToS (required by newer conda before env create).
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 COPY environment.yml /tmp/environment.yml
 RUN conda env create -f /tmp/environment.yml && conda clean -afy
 
