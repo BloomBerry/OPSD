@@ -18,8 +18,8 @@ TRAIN_SCRIPT="${1:-scripts/run_opsd_1b_baseline.sh}"
 GPUS="${GPUS:-all}"                       # e.g. GPUS='"device=0,1"' to pin GPUs
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# HF cache lives on the NAS (already populated with the Qwen models in hub-cache
-# format: $HF_CACHE_DIR/hub/models--Qwen--Qwen3-1.7B/...). Mounted read-only.
+# HF cache lives on the NAS (hub-cache format: $HF_CACHE_DIR/hub/models--Qwen--...).
+# Mounted read-write so first-time model downloads persist back to the NAS.
 HF_CACHE_DIR="${HF_CACHE_DIR:-/data/nas_vol1/huggingface}"
 OUTPUTS_DIR="${OUTPUTS_DIR:-$REPO_DIR/outputs}"
 WANDB_DIR="${WANDB_DIR:-$REPO_DIR/wandb}"
@@ -54,11 +54,11 @@ exec docker run --rm -it \
     ${WANDB_ENTITY:+-e WANDB_ENTITY="$WANDB_ENTITY"} \
     ${HF_TOKEN:+-e HF_TOKEN="$HF_TOKEN"} \
     -e HF_HOME=/hf_cache \
-    -e HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" \
+    -e HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}" \
     -e NCCL_CUMEM_ENABLE="${NCCL_CUMEM_ENABLE:-0}" \
     -e NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}" \
     -v "$REPO_DIR":/workspace \
-    -v "$HF_CACHE_DIR":/hf_cache:ro \
+    -v "$HF_CACHE_DIR":/hf_cache \
     -v "$OUTPUTS_DIR":/workspace/outputs \
     -v "$WANDB_DIR":/workspace/wandb \
     "$IMAGE" \
