@@ -47,13 +47,17 @@ The code uses `trl`'s experimental GOLD trainer as a base.
 ├── sft_train.py             # SFT baseline training entry point
 ├── grpo_train.py            # GRPO baseline training entry point
 ├── accelerate.yaml          # Accelerate config (multi-GPU)
+├── Dockerfile               # Pinned image (opsd:repro) for reproduction runs
 ├── scripts/
 │   ├── run_opsd.sh          # Example launch script for OPSD
 │   ├── run_sft.sh           # Example launch script for SFT
-│   └── run_grpo.sh          # Example launch script for GRPO
+│   ├── run_grpo.sh          # Example launch script for GRPO
+│   ├── run_opsd_1b_baseline.sh  # Qwen3-1.7B baseline reproduction (training)
+│   └── docker_run.sh        # Run any script above inside the pinned image
 └── eval/
     ├── evaluate_math.py     # Evaluation script (vLLM)
-    └── run_eval.sh          # Example evaluation script
+    ├── run_eval.sh          # Example evaluation script
+    └── run_eval_baseline.sh # Qwen3-1.7B baseline reproduction (all 15 eval jobs)
 ```
 
 ## Quick Start
@@ -118,6 +122,87 @@ bash run_eval.sh
 
 > **Evaluation settings:** temperature=1.0, thinking mode enabled, max new tokens=38912, top-p=none, top-k disabled, min-p=0, presence penalty=0, num samples=12
 
+
+## Baseline Reproduction (Docker)
+
+Tooling for reproducing the Qwen3-1.7B table above inside a pinned container.
+
+### Setup
+
+```bash
+docker build -t opsd:repro .
+export WANDB_API_KEY=<your-key-from-https://wandb.ai/authorize>
+```
+
+`scripts/docker_run.sh` runs any script under `scripts/` or `eval/` inside the image:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `WANDB_API_KEY` | *(required)* | Runs log to wandb project `OPSD` in online mode |
+| `GPUS` | `all` | Passed to `docker --gpus`, e.g. `GPUS='"device=4,5,6,7"'` |
+| `IMAGE` | `opsd:repro` | Image to run |
+| `HF_CACHE_DIR` | `/data/nas_vol1/huggingface` | HF hub cache on the NAS, mounted read-write at `/hf_cache` |
+| `EVAL_GPUS`, `TP`, `STEPS`, `RUN_BASE` | — | Forwarded to the eval script (see below) |
+
+### Training
+
+```bash
+GPUS='"device=4,5,6,7"' bash scripts/docker_run.sh scripts/run_opsd_1b_baseline.sh
+```
+
+Checkpoints land in `outputs/qwen31b_gen1024_fixteacher_temp11_forwardbeta0_clip005/checkpoint-*`
+(`--save_steps 25`). The baseline peaks within 100 steps, so the eval below only needs
+checkpoint-25/50/75/100.
+
+### Evaluation
+
+```bash
+# default: base + checkpoint-100 on all three benchmarks (6 jobs)
+GPUS='"device=4,5,6"' EVAL_GPUS=0,1,2 bash scripts/docker_run.sh eval/run_eval_baseline.sh
+
+# full sweep reproducing the table above (15 jobs)
+GPUS='"device=4,5,6"' EVAL_GPUS=0,1,2 STEPS="25 50 75 100" \
+    bash scripts/docker_run.sh eval/run_eval_baseline.sh
+```
+
+One job per (checkpoint, benchmark), each at Avg@12.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `EVAL_GPUS` | `0,1,2,3` | **Container-side** device index, so `0..N-1` for whatever `GPUS` exposes |
+| `STEPS` | `100` | Space-separated checkpoint steps, e.g. `"25 50 75 100"` |
+| `RUN_BASE` | `1` | Also evaluate the untrained base model; `0` to skip |
+| `TP` | `1` | Tensor-parallel size — see below |
+| `LOG_DIR` | `eval_logs` | Per-job logs, relative to `eval/` |
+
+`TP` defaults to `1` because Qwen3-1.7B is ~3.4GB in bf16 and fits on one 80GB GPU: tensor
+parallelism buys no memory here and only adds two all-reduces per layer per decode step. The
+GPUs are used for data parallelism instead — one eval process per GPU, jobs round-robined
+across them. Set `TP>1` to fall back to a single process spanning all of `EVAL_GPUS`.
+
+Results land in `eval/eval_results/*.json`, one file per job.
+
+### Performance notes
+
+The first full reproduction took ~20h for its 15 jobs on 2×A100 with `TP=2`, holding a flat
+~1,000 output tokens/s. The workload is genuinely heavy — thinking mode generates a median of
+~16k (AIME24) to ~23k (HMMT25) tokens per solution, 360 solutions per job — but two settings
+were making it worse than it needed to be, and both are now fixed:
+
+- **CUDA graphs are on by default.** `enforce_eager` used to be hardcoded to `True`. Decode for
+  a 1.7B model is kernel-launch bound, so graph capture matters a lot. Pass `--enforce_eager`
+  to `evaluate_math.py` to revert if you hit graph-capture issues.
+- **`TP=1` with one process per GPU** instead of `TP=2` (see above).
+
+Known remaining costs, not addressed:
+
+- LoRA is served at runtime (`max_lora_rank=64`) rather than merged into the base weights,
+  adding ~200 kernel launches per decode step. Base-model jobs do not pay this.
+- Every job starts a fresh vLLM engine rather than hot-swapping adapters.
+- `max_model_len=40960` with sequences reaching ~40k tokens means KV cache capacity, not
+  compute, caps the batch size. Check the `GPU KV cache size:` line in `eval/eval_logs/*.log`;
+  if preemption warnings show up, raise `--gpu_memory_utilization`.
+- No seed is fixed in training or sampling, so run-to-run variation of a few points is expected.
 
 ## Non-Thinking Mode
 

@@ -93,6 +93,7 @@ def load_vllm_model(
     tensor_parallel_size: int = 1,
     max_model_len: int = None,
     enable_thinking: bool = True,
+    enforce_eager: bool = False,
 ):
     """
     Load a model using vLLM for fast inference.
@@ -104,6 +105,8 @@ def load_vllm_model(
         tensor_parallel_size: Number of GPUs to use for tensor parallelism
         max_model_len: Maximum model context length
         enable_thinking: Whether to enable thinking mode for Qwen3
+        enforce_eager: Disable CUDA graph capture. Slower (decode on small models is
+            kernel-launch bound), kept only as a fallback for graph-capture issues.
 
     Returns:
         Tuple of (vLLM LLM instance, tokenizer)
@@ -126,7 +129,7 @@ def load_vllm_model(
         "trust_remote_code": True,
         "max_model_len": max_model_len,
         "distributed_executor_backend": "mp",
-        "enforce_eager": True,
+        "enforce_eager": enforce_eager,
     }
 
     if lora_adapter_path is not None:
@@ -632,6 +635,11 @@ def main():
     parser.add_argument(
         "--val_n", type=int, default=6, help="Number of solutions to sample per problem (default: 6)"
     )
+    parser.add_argument(
+        "--enforce_eager",
+        action="store_true",
+        help="Disable vLLM CUDA graph capture (slower; fallback for graph-capture issues)",
+    )
 
     args = parser.parse_args()
 
@@ -699,6 +707,7 @@ def main():
     print(f"Output file: {args.output_file}")
     print(f"GPU memory utilization: {args.gpu_memory_utilization}")
     print(f"Tensor parallel size: {args.tensor_parallel_size}")
+    print(f"CUDA graphs: {'DISABLED (enforce_eager)' if args.enforce_eager else 'ENABLED'}")
     print("=" * 70 + "\n")
 
     # Load model with vLLM
@@ -709,6 +718,7 @@ def main():
         tensor_parallel_size=args.tensor_parallel_size,
         max_model_len=args.max_model_len,
         enable_thinking=args.enable_thinking,
+        enforce_eager=args.enforce_eager,
     )
 
     # Setup LoRA request if checkpoint is provided
